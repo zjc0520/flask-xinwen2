@@ -27,7 +27,8 @@ def create_app(config_name):
     CSRFProtect(app)
     # 设置session保存位置
     Session(app)
-
+    from info.modules.index import index_blu
+    app.register_blueprint(index_blu)
     return app
 def setup_log(config_name):
     """配置日志"""
