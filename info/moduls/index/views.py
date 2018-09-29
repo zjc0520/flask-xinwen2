@@ -8,7 +8,6 @@ def index():
     return render_template("news/index.html")
 @index_blu.route('/favicon.ico')
 def favicon():
+    #返回静态文件给浏览器
     return current_app.send_static_file('news/favicon.ico')
-@index_blu.route('/index1')
-def index():
-    return "wew"
+

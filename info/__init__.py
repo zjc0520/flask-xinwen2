@@ -47,7 +47,7 @@ def create_app(config_name):
     db.init_app(app)
     # 配置redis
     global redis_store
-    redis_store = redis.StrictRedis(host=config_dict[config_name].REDIS_HOST, port=config_dict[config_name].REDIS_PORT)
+    redis_store = redis.StrictRedis(host=config_dict[config_name].REDIS_HOST, port=config_dict[config_name].REDIS_PORT,decode_responses=True)
     # 开启csrf保护
     """
         #4.开启csrf保护机制
@@ -59,8 +59,11 @@ def create_app(config_name):
     # 设置session保存位置
     Session(app)
     # 注册蓝图
-    from info.modules.index import index_blu
+    from info.moduls.index import index_blu
     # 注册首页的蓝图对象
     app.register_blueprint(index_blu)
     #返回不同模式下的app对象
+    # 注册登陆注册蓝图
+    from info.moduls.passport import passport_blu
+    app.register_blueprint(passport_blu)
     return app
