@@ -1,12 +1,12 @@
 from info.lib.yuntongxin.CCPRestSDK import REST
 # 说明：主账号，登陆云通讯网站后，可在"控制台-应用"
 # 中看到开发者主账号ACCOUNT SID
-_accountSid=''
+_accountSid='8a216da8662360a401663423a736074b'
 # 说明：主账号Token，登陆云通讯网站后，
 # 可在控制台-应用中看到开发者主账号AUTH TOKEN
-_accountToken = ''
+_accountToken = 'e6ad0341a97f45be9aaa525ec9b8c7c4'
 # 请使用管理控制台首页的APPID或自己创建应用的APPID
-_appId =''
+_appId ='8a216da8662360a401663423a7950752'
 # 说明：请求地址，生产环境配置成app.cloopen.com
 # 注意点：需要将沙箱环境改成生成环境
 _serverIP='app.cloopen.com'
@@ -67,9 +67,9 @@ class CCP(object):
         if result.get("statusCode")=='000000':
             return 0
         else:
-            return -1
+            return -1# 1. 获取参数和判断是否有值
 if __name__ == '__main__':
     ccp = CCP()
     # 注意： 测试的短信模板编号为1
-    ccp.send_template_sms('18520340803', ['1238', 5], 1)
+    ccp.send_template_sms('15365472153', ['1238', 5], 1)
 

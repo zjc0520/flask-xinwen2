@@ -8,7 +8,7 @@ class Config(object):
     DEBUG=True
 
     #数据库配置信息
-    SQLALCHEMY_DATABASE_URI='mysql://root:mysql@127.0.0.1:3306/information'
+    SQLALCHEMY_DATABASE_URI='mysql://root:mysql@127.0.0.1:3306/newsinformation'
     SQLALCHEMY_TRACK_MODIFICATIONS=True
 
     # redis配置

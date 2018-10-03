@@ -47,7 +47,10 @@ def create_app(config_name):
     db.init_app(app)
     # 配置redis
     global redis_store
-    redis_store = redis.StrictRedis(host=config_dict[config_name].REDIS_HOST, port=config_dict[config_name].REDIS_PORT,decode_responses=True)
+    redis_store = redis.StrictRedis(host=config_dict[config_name].REDIS_HOST,
+                                    port=config_dict[config_name].REDIS_PORT,
+                                    db=config_dict[config_name].REDIS_NUM,
+                                    decode_responses=True)
     # 开启csrf保护
     """
         #4.开启csrf保护机制
@@ -55,7 +58,7 @@ def create_app(config_name):
         2.自动获取ajax请求头中的csrf_token
         3.自己校验这两个值
         """
-    CSRFProtect(app)
+    # CSRFProtect(app)
     # 设置session保存位置
     Session(app)
     # 注册蓝图

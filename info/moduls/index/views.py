@@ -3,7 +3,7 @@ from flask import render_template, current_app
 
 
 # 使用蓝图
-@index_blu.route('/index')
+@index_blu.route('/')
 def index():
     return render_template("news/index.html")
 @index_blu.route('/favicon.ico')

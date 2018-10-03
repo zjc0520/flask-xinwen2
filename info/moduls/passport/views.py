@@ -1,15 +1,17 @@
-from flask import current_app, jsonify, abort
+from datetime import datetime
+from flask import current_app, jsonify, abort, session
 from flask import make_response
 from flask import request
+from flask import render_template
 
-from info import constants
+from info import constants, db
 from info import redis_store
 from info.models import User
 from info.utils.captcha.captcha import captcha
 from info.utils.response_code import RET
 import re, random
 import logging
-from info.lib.yuntongxun.sms import CCP
+from info.lib.yuntongxin.sms import CCP
 
 from . import passport_blu
 @passport_blu.route('/image_code')
@@ -51,8 +53,8 @@ def get_image_code():
     response.headers["Content-Type"]="image/JPEG"
     return response
 #发送短信后端实现
-@passport_blu.route('/smscode',methods=['POST'])
-def send_sms():
+@passport_blu.route('/sms_code',methods=['POST'])
+def send_sms_code():
     """点击发送短信验证码后端接口"""
     """
     1.获取参数
@@ -85,6 +87,8 @@ def send_sms():
     image_code=param_dict.get("image_code",'')
     #UUid编号
     image_code_id=param_dict.get('image_code_id','')
+
+    print('77777')
     # 2.1 非空判断 mobile,image_code，image_code_id 是否有空
     if not all([mobile,image_code,image_code_id]):
         # 记录日志
@@ -145,6 +149,129 @@ def send_sms():
 
         # 4.返回值
     return jsonify(errno=RET.OK, errmsg="发送短信验证码成功，注意查收")
+@passport_blu.route('/register',methods=['POST'])
+def register():
+    """注册页面后端实现"""
+
+    """
+    1.获取参数：手机号mobile,手机验证码，密码
+    2.效验参数
+    3.从redis中取出指定手机号对应的验证码
+    4.效验验证码
+    5,初始化user模型,并设置数据添加到数据库
+    6. 保存当前用户的状态
+    7. 返回注册的结果
+    """
+    # 1.获取参数：手机号mobile, 手机验证码，密码
+    json_data=request.json
+    mobile=json_data.get("mobile",'')
+    sms_code=json_data.get("smscode",'')
+    password=json_data.get("password",'')
+    # 2.效验参数
+    # 2.1非空验证
+    if not all([mobile,sms_code,password]):
+        # 参数不全
+        return jsonify(errno=RET.PARAMERR, errmsg="参数不全")
+    #2.2，手机号验证
+    if not re.match("1[35789][0-9]{9}",mobile):
+        current_app.logger.error("手机格式错误")
+        return jsonify(errno=RET.PARAMERR, errmsg="手机格式错误")
+    # 3.从redis中取出指定手机号对应的验证码
+    try:
+        real_sms_code=redis_store.get("SMS_CODE_"+mobile)
+    except Exception as e:
+        current_app.logger.error(e)
+        # 获取本地验证码失败
+        return jsonify(errno=RET.DBERR, errmsg="获取本地验证码失败")
+    if not real_sms_code:
+        # 短信验证码过期
+        return jsonify(errno=RET.NODATA, errmsg="短信验证码过期")
+    # 4. 效验验证码
+    if sms_code!=real_sms_code:
+        return jsonify(errno=RET.PARAMERR,errmsg="短信验证码错误")
+    # 删除短信验证码
+    try:
+        redis_store.delete("SMS_CODE_"+mobile)
+    except Exception as e:
+        current_app.logger.error(e)
+    # 5, 初始化user模型, 并设置数据添加到数据库
+    user=User()
+    user.nick_name=mobile
+    user.mobile=mobile
+    # 当前时间作为最后一次登录时间
+    user.last_login = datetime.now()
+    # TODO: 密码加密处理
+    # 一般的套路
+    # user.set_password_hash(password)
+    # 将属性赋值的底层实现（复习）
+    user.password=password
+    try:
+        db.session.add(user)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(e)
+        # 数据保存错误
+        return jsonify(errno=RET.DATAERR, errmsg="数据保存错误")
+    # 6. 保存用户登录状态
+    session["user_id"]=user.id
+    session["nick_name"] = user.nick_name
+    session["mobile"] = user.mobile
+    # 7. 返回注册结果
+    return jsonify(errno=RET.OK, errmsg="OK")
+@passport_blu.route('/login', methods=["POST"])
+def login():
+     """登录后端实现"""
+     """
+     1.获取参数：手机号mobile，密码，possword
+     2.效验参数
+     3. 从数据库查询出指定的用户
+     4. 校验密码
+     5. 保存用户登录状态
+     6. 返回结果
+     """
+     # 1. 获取参数和判断是否有值
+     json_data=request.json
+     mobile=json_data.get("mobile")
+     password=json_data.get("password")
+     # 2.效验参数
+     if not all([mobile,password]):
+         #参数不全
+        return jsonify(error=RET.PARAMERR,errmsg="参数不齐")
+     # 2.2 手机号码格式判断
+     if not re.match('1[35789][0-9]{9}', mobile):
+         current_app.logger.error("手机格式错误")
+         return jsonify(errno=RET.PARAMERR, errmsg="手机格式错误")
+     # 3.从数据库查询出指定的用户
+     try:
+        user=User.query.filter(User.mobile==mobile).first()
+     except Exception as e:
+         current_app.logger.error(e)
+         return jsonify(errno=RET.DBERR, errmsg="查询数据错误")
+
+     if not user:
+         return jsonify(error=RET.USERERR,errmsg="用户不存在")
+     #4.效验密码
+     if not user.check_passowrd(password):
+         return jsonify(errno=RET.PWDERR, errmsg="密码错误")
+     #5.保存用户登录状态
+     session["user_id"]=user.id
+     session['nick_name']=user.nick_name
+     session["mobile"]=user.mobile
+     #记录用户最后一次登录时间
+     user.last_login=datetime.now()
+     # 修改了user对象的数据，需要使用commit将数据保存到数据库
+     try:
+         db.session.commit()
+     except Exception as e:
+         current_app.logger.error(e)
+         db.session.rollback()
+         #数据库回滚
+         return jsonify(errno=RET.DBERR, errmsg="保存用户数据异常")
+     # 4.登录成功
+     return jsonify(errno=RET.OK, errmsg="登录成功")
+
+
 
 
 

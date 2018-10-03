@@ -57,6 +57,12 @@ class User(BaseModel, db.Model):
 
     # 当前用户所发布的新闻
     news_list = db.relationship('News', backref='user', lazy='dynamic')
+    #新加入
+    def set_password_hash(self,password):
+        """密码加密处理"""
+        # 参数1：未加密的密码
+        # 返回值：加密后的密码并赋值给user对象的password_hash属性
+        self.password_hash=generate_password_hash(password)
 
     @property
     def password(self):
